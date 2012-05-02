@@ -19,21 +19,31 @@ class Base(object):
 
     def __init__(self,
                  cls,
+                 session=None,
                  create_schema=CreateSchema,
                  update_schema=UpdateSchema,
                  delete_schema=DeleteSchema):
         self.model = cls
+        self.session = None
         self.create_schema = create_schema(cls)
         self.update_schema = update_schema(cls)
         self.delete_schema = delete_schema(cls)
 
-    def create(self, session, **kwargs):
+    def create(self, session=None, **kwargs):
+
+        if session is None:
+            session = self.session
+
         obj = self.create_schema.deserialize(kwargs)
         session.add(obj)
+
         return obj
 
-    def read(self, session, criterions=None, intersect=True,
+    def read(self, session=None, criterions=None, intersect=True,
              order_by=None, start=None, limit=None, raw_query=False):
+
+        if session is None:
+            session = self.session
 
         query = session.query(self.model)
 
@@ -67,8 +77,14 @@ class Base(object):
         msg = "'raw_query' and 'start'/'limit' are mutually exclusive."
         raise ValueError(msg)
 
-    def update(self, session, **kwargs):
-        # FIXME: add support to update of PKs.
+    def update(self, session=None, **kwargs):
+
+        # FEATURE:  update of PKs is not supported.
+        # It can be done after using returned obj.
+
+        if session is None:
+            session = self.session
+
         obj = self.update_schema.deserialize(kwargs)
         obj = session.merge(obj)
         if obj in session.new:
@@ -77,10 +93,14 @@ class Base(object):
                      for attr in self.update_schema.registry.pkeys]
             msg = "%s %s not found." % (self.model.__name__, pkeys)
             raise NoResultFound(msg)
+
         return obj
 
-    def delete(self, session, **kwargs):
-        # Add checks. An example: no entity -> raise NoResultFound
+    def delete(self, session=None, **kwargs):
+
+        if session is None:
+            session = self.session
+
         obj = self.delete_schema.deserialize(kwargs)
         obj = session.merge(obj)
         if obj in session.new:
@@ -89,5 +109,7 @@ class Base(object):
                      for attr in self.delete_schema.registry.pkeys]
             msg = "%s %s not found." % (self.model.__name__, pkeys)
             raise NoResultFound(msg)
+
         session.delete(obj)
+
         return obj
