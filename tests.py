@@ -160,6 +160,10 @@ class TestsBase(unittest.TestCase):
         self.assertEqual(obj.surname, account.surname)
 
     def delete_accounts(self):
+        self.assertRaises(NoResultFound,
+                          self.account.delete,
+                          self.session,
+                          email='nomail@nodomain.tld')
         self.account.delete(self.session, email='mailbox@domain.tld')
         self.account.delete(self.session, email='mailbox2@domain2.tld')
         self.session.flush()

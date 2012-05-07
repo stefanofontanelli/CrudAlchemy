@@ -17,12 +17,8 @@ __all__ = ['Base']
 
 class Base(object):
 
-    def __init__(self,
-                 cls,
-                 session=None,
-                 create_schema=CreateSchema,
-                 update_schema=UpdateSchema,
-                 delete_schema=DeleteSchema):
+    def __init__(self, cls, session=None, create_schema=CreateSchema,
+                 update_schema=UpdateSchema, delete_schema=DeleteSchema):
         self.model = cls
         self.session = None
         self.create_schema = create_schema(cls)
@@ -81,6 +77,7 @@ class Base(object):
 
         # FEATURE:  update of PKs is not supported.
         # It can be done after using returned obj.
+        # RATIONALE: method signature is more readable.
 
         if session is None:
             session = self.session
@@ -89,9 +86,7 @@ class Base(object):
         obj = session.merge(obj)
         if obj in session.new:
             session.expunge(obj)
-            pkeys = [getattr(obj, attr)
-                     for attr in self.update_schema.registry.pkeys]
-            msg = "%s %s not found." % (self.model.__name__, pkeys)
+            msg = "%s %s not found." % (self.model.__name__, kwargs.keys())
             raise NoResultFound(msg)
 
         return obj
@@ -105,9 +100,7 @@ class Base(object):
         obj = session.merge(obj)
         if obj in session.new:
             session.expunge(obj)
-            pkeys = [getattr(obj, attr)
-                     for attr in self.delete_schema.registry.pkeys]
-            msg = "%s %s not found." % (self.model.__name__, pkeys)
+            msg = "%s %s not found." % (self.model.__name__, kwargs.keys())
             raise NoResultFound(msg)
 
         session.delete(obj)
