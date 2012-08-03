@@ -5,9 +5,7 @@
 # This module is part of CrudAlchemy and is released under
 # the MIT License: http://www.opensource.org/licenses/mit-license.php
 
-from schema import CreateSchema
-from schema import UpdateSchema
-from schema import DeleteSchema
+from colanderalchemy import MappingRegistry
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.sql.expression import and_
 from sqlalchemy.sql.expression import or_
@@ -17,31 +15,48 @@ __all__ = ['Base']
 
 class Base(object):
 
-    def __init__(self, cls, session=None, create_schema=CreateSchema,
-                 update_schema=UpdateSchema, delete_schema=DeleteSchema):
-        self.model = cls
+    def __init__(self, cls, session=None):
+
+        self.cls = cls
         self.session = None
-        self.create_schema = create_schema(cls)
-        self.update_schema = update_schema(cls)
-        self.delete_schema = delete_schema(cls)
+        self.mapping_registry = MappingRegistry(cls)
+        # Check cls is instance of ColanderAlchemy.Base class.
 
     def create(self, session=None, **kwargs):
 
         if session is None:
             session = self.session
 
-        obj = self.create_schema.deserialize(kwargs)
+        obj = self.cls(**kwargs)
         session.add(obj)
 
         return obj
 
-    def read(self, session=None, criterions=None, intersect=True,
-             order_by=None, start=None, limit=None, raw_query=False):
+    def read(self, session=None, **kwargs):
+
+        # NOTE:  update of PKs is not supported.
+        # It can be done after using returned obj.
+        # NOTE 2: all fields must be provided!
 
         if session is None:
             session = self.session
 
-        query = session.query(self.model)
+        obj = self.cls(**kwargs)
+        obj = session.merge(obj)
+        if obj in session.new:
+            session.expunge(obj)
+            msg = "%s %s not found." % (self.cls.__name__, kwargs)
+            raise NoResultFound(msg)
+
+        return obj
+
+    def search(self, session=None, criterions=None, intersect=True,
+               order_by=None, start=None, limit=None, raw_query=False):
+
+        if session is None:
+            session = self.session
+
+        query = session.query(self.cls)
 
         if criterions and intersect:
             # Use sqlalchmey AND
@@ -75,18 +90,18 @@ class Base(object):
 
     def update(self, session=None, **kwargs):
 
-        # FEATURE:  update of PKs is not supported.
+        # NOTE:  update of PKs is not supported.
         # It can be done after using returned obj.
-        # RATIONALE: method signature is more readable.
+        # NOTE 2: all fields must be provided!
 
         if session is None:
             session = self.session
 
-        obj = self.update_schema.deserialize(kwargs)
+        obj = self.cls(**kwargs)
         obj = session.merge(obj)
         if obj in session.new:
             session.expunge(obj)
-            msg = "%s %s not found." % (self.model.__name__, kwargs.keys())
+            msg = "%s %s not found." % (self.cls.__name__, kwargs)
             raise NoResultFound(msg)
 
         return obj
@@ -96,11 +111,16 @@ class Base(object):
         if session is None:
             session = self.session
 
-        obj = self.delete_schema.deserialize(kwargs)
-        obj = session.merge(obj)
-        if obj in session.new:
-            session.expunge(obj)
-            msg = "%s %s not found." % (self.model.__name__, kwargs.keys())
+        try:
+            id_ = tuple([kwargs[k] for k in self.mapping_registry.pkeys])
+
+        except KeyError as e:
+            msg = 'You must specify all primary keys: %s' % e
+            raise ValueError(msg)
+
+        obj = session.query(self.cls).get(id_)
+        if obj is None:
+            msg = '%s %s not found.' % (self.cls.__name__, kwargs)
             raise NoResultFound(msg)
 
         session.delete(obj)
