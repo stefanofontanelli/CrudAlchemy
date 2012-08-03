@@ -5,8 +5,6 @@
 # This module is part of CrudAlchemy and is released under
 # the MIT License: http://www.opensource.org/licenses/mit-license.php
 
-
-import colander
 import crudalchemy
 import logging
 import sqlalchemy
@@ -63,55 +61,59 @@ class TestsBase(unittest.TestCase):
         self.session.flush()
         # Test Read.
         self.assertEqual(sorted(accounts),
-                         sorted(self.account.read(self.session)))
+                         sorted(self.account.search(self.session)))
 
-        self.assertEqual(self.account.read(self.session,
-                                           raw_query=True).count(),
+        self.assertEqual(self.account.search(self.session,
+                                             raw_query=True).count(),
                          2)
 
-        self.assertEqual(self.account.read(self.session,
-                                           start=0,
-                                           limit=1)[0].email,
+        self.assertEqual(self.account.search(self.session,
+                                             start=0,
+                                             limit=1)[0].email,
                          accounts[0].email)
-        self.assertEqual(self.account.read(self.session,
-                                           start=1,
-                                           limit=2)[0].email,
+        self.assertEqual(self.account.search(self.session,
+                                             start=1,
+                                             limit=2)[0].email,
                          accounts[1].email)
 
         criterions = (Account.email.like('%domain.%'),)
-        self.assertEqual(self.account.read(self.session,
-                                           criterions=criterions)[0].email,
-                         accounts[0].email)
+        self.assertEqual(self.account.search(self.session,
+                                             criterions=criterions)[0].email,
+                                             accounts[0].email)
 
         order_by = (Account.gender.asc(),)
-        self.assertEqual(self.account.read(self.session,
-                                           order_by=order_by)[0].email,
+        self.assertEqual(self.account.search(self.session,
+                                             order_by=order_by)[0].email,
                          accounts[1].email)
-        self.assertEqual(self.account.read(self.session,
-                                           order_by=order_by)[1].email,
+        self.assertEqual(self.account.search(self.session,
+                                             order_by=order_by)[1].email,
                          accounts[0].email)
 
         order_by = (Account.gender.desc(),)
-        self.assertEqual(self.account.read(self.session,
-                                           order_by=order_by)[0].email,
+        self.assertEqual(self.account.search(self.session,
+                                             order_by=order_by)[0].email,
                          accounts[0].email)
-        self.assertEqual(self.account.read(self.session,
-                                           order_by=order_by)[1].email,
+        self.assertEqual(self.account.search(self.session,
+                                             order_by=order_by)[1].email,
                          accounts[1].email)
 
         criterions = (Account.email.like('%domain%'),
                       Account.gender == 'F')
-        self.assertEqual(self.account.read(self.session,
-                                           criterions=criterions)[0].email,
+        self.assertEqual(self.account.search(self.session,
+                                             criterions=criterions)[0].email,
                          accounts[1].email)
 
         criterions = (Account.gender == 'M',
                       Account.gender == 'F')
-        results = self.account.read(self.session,
-                                    criterions=criterions,
-                                    intersect=False)
+        results = self.account.search(self.session,
+                                      criterions=criterions,
+                                      intersect=False)
         self.assertIn(accounts[0], results)
         self.assertIn(accounts[1], results)
+
+        params = {'email': 'mailbox@domain.tld'}
+        obj = self.account.read(self.session, **params)
+        self.assertEqual(accounts[0], obj)
 
         # Test Update
         self.update_accounts()
@@ -136,7 +138,7 @@ class TestsBase(unittest.TestCase):
         params = {'name': 'My Name',
                   'surname': 'My Surname',
                   'gender': 'M'}
-        self.assertRaises(colander.Invalid,
+        self.assertRaises(NoResultFound,
                           self.account.update,
                           self.session,
                           **params)
@@ -155,7 +157,7 @@ class TestsBase(unittest.TestCase):
         obj = self.account.update(self.session, **params)
         self.session.flush()
         criterions = (Account.email == 'mailbox@domain.tld',)
-        account = self.account.read(self.session, criterions=criterions)[0]
+        account = self.account.search(self.session, criterions=criterions)[0]
         self.assertEqual(obj.name, account.name)
         self.assertEqual(obj.surname, account.surname)
 
@@ -167,6 +169,6 @@ class TestsBase(unittest.TestCase):
         self.account.delete(self.session, email='mailbox@domain.tld')
         self.account.delete(self.session, email='mailbox2@domain2.tld')
         self.session.flush()
-        self.assertEqual(self.account.read(self.session,
-                                           raw_query=True).count(),
+        self.assertEqual(self.account.search(self.session,
+                                             raw_query=True).count(),
                          0)
