@@ -6,6 +6,7 @@
 # the MIT License: http://www.opensource.org/licenses/mit-license.php
 
 from colanderalchemy import MappingRegistry
+from colanderalchemy import SQLAlchemyMapping
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.sql.expression import and_
 from sqlalchemy.sql.expression import or_
@@ -15,37 +16,65 @@ __all__ = ['Base']
 
 class Base(object):
 
-    def __init__(self, cls, session=None):
+    def __init__(self, cls, session=None, create_schema=None,
+                 read_schema=None, update_schema=None, delete_schema=None):
 
         self.cls = cls
         self.session = None
         self.mapping_registry = MappingRegistry(cls)
-        # Check cls is instance of ColanderAlchemy.Base class.
+        if create_schema is None:
+            create_schema = SQLAlchemyMapping(cls)
+
+        self.create_schema = create_schema
+
+        if update_schema is None:
+            nullables = {name: False
+                         for name in self.mapping_registry.pkeys}
+            update_schema = SQLAlchemyMapping(cls, nullables=nullables)
+
+        self.update_schema = update_schema
+
+        if read_schema is None:
+            nullables = {name: True
+                         for name in self.mapping_registry.attrs
+                         if name not in self.mapping_registry.pkeys}
+            read_schema = SQLAlchemyMapping(cls, nullables=nullables)
+
+        self.read_schema = read_schema
+
+        if delete_schema is None:
+            includes = self.mapping_registry.pkeys
+            delete_schema = SQLAlchemyMapping(cls, includes=includes)
+
+        self.delete_schema = delete_schema
 
     def create(self, session=None, **kwargs):
 
         if session is None:
             session = self.session
 
-        obj = self.cls(**kwargs)
+        obj = self.cls(**self.create_schema.deserialize(kwargs))
         session.add(obj)
 
         return obj
 
     def read(self, session=None, **kwargs):
 
-        # NOTE:  update of PKs is not supported.
-        # It can be done after using returned obj.
-        # NOTE 2: all fields must be provided!
-
         if session is None:
             session = self.session
 
-        obj = self.cls(**kwargs)
-        obj = session.merge(obj)
-        if obj in session.new:
-            session.expunge(obj)
-            msg = "%s %s not found." % (self.cls.__name__, kwargs)
+        params = self.read_schema.deserialize(kwargs)
+
+        try:
+            id_ = tuple([params[k] for k in self.mapping_registry.pkeys])
+
+        except KeyError as e:
+            msg = 'You must specify all primary keys: %s' % e
+            raise ValueError(msg)
+
+        obj = session.query(self.cls).get(id_)
+        if obj is None:
+            msg = '%s %s not found.' % (self.cls.__name__, kwargs)
             raise NoResultFound(msg)
 
         return obj
@@ -97,7 +126,7 @@ class Base(object):
         if session is None:
             session = self.session
 
-        obj = self.cls(**kwargs)
+        obj = self.cls(**self.update_schema.deserialize(kwargs))
         obj = session.merge(obj)
         if obj in session.new:
             session.expunge(obj)
@@ -111,8 +140,10 @@ class Base(object):
         if session is None:
             session = self.session
 
+        params = self.delete_schema.deserialize(kwargs)
+
         try:
-            id_ = tuple([kwargs[k] for k in self.mapping_registry.pkeys])
+            id_ = tuple([params[k] for k in self.mapping_registry.pkeys])
 
         except KeyError as e:
             msg = 'You must specify all primary keys: %s' % e

@@ -5,6 +5,7 @@
 # This module is part of CrudAlchemy and is released under
 # the MIT License: http://www.opensource.org/licenses/mit-license.php
 
+import colander
 import crudalchemy
 import logging
 import sqlalchemy
@@ -23,8 +24,8 @@ class Account(Base):
     __tablename__ = 'accounts'
     email = sqlalchemy.Column(sqlalchemy.Unicode(256), primary_key=True)
     name = sqlalchemy.Column(sqlalchemy.Unicode(128), nullable=False)
-    surname = sqlalchemy.Column(sqlalchemy.Unicode(128), nullable=False)
-    gender = sqlalchemy.Column(sqlalchemy.Enum(u'M', u'F'), nullable=False)
+    surname = sqlalchemy.Column(sqlalchemy.Unicode(128), nullable=True)
+    gender = sqlalchemy.Column(sqlalchemy.Enum(u'M', u'F'), nullable=True)
     contact = sqlalchemy.orm.relationship('Contact',
                                           uselist=False,
                                           back_populates='account')
@@ -138,7 +139,7 @@ class TestsBase(unittest.TestCase):
         params = {'name': 'My Name',
                   'surname': 'My Surname',
                   'gender': 'M'}
-        self.assertRaises(NoResultFound,
+        self.assertRaises(colander.Invalid,
                           self.account.update,
                           self.session,
                           **params)
