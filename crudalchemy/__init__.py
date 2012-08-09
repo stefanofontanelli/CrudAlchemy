@@ -10,8 +10,12 @@ from colanderalchemy import SQLAlchemyMapping
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.sql.expression import and_
 from sqlalchemy.sql.expression import or_
+import logging
 
 __all__ = ['Base']
+
+
+log = logging.getLogger(__file__)
 
 
 class Base(object):
@@ -126,12 +130,22 @@ class Base(object):
         if session is None:
             session = self.session
 
-        obj = self.cls(**self.update_schema.deserialize(kwargs))
-        obj = session.merge(obj)
-        if obj in session.new:
-            session.expunge(obj)
-            msg = "%s %s not found." % (self.cls.__name__, kwargs)
+        params = self.update_schema.deserialize(kwargs)
+        try:
+            id_ = tuple([params[k] for k in self.mapping_registry.pkeys])
+
+        except KeyError as e:
+            msg = 'You must specify all primary keys: %s' % e
+            raise ValueError(msg)
+
+        obj = session.query(self.cls).get(id_)
+        if obj is None:
+            msg = '%s %s not found.' % (self.cls.__name__, kwargs)
             raise NoResultFound(msg)
+
+        for attr, value in params.items():
+            log.debug('Attr: %s - Value: %s' % (attr, value))
+            setattr(obj, attr, value)
 
         return obj
 
