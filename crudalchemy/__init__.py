@@ -47,10 +47,14 @@ class Base(object):
         self.read_schema = read_schema
 
         if delete_schema is None:
-            includes = {name: True
+            excludes = {name: True
                         for name in self.mapping_registry.attrs
                         if name not in self.mapping_registry.pkeys}
-            delete_schema = SQLAlchemyMapping(cls, includes=includes)
+            nullables = {name: False
+                         for name in self.mapping_registry.pkeys}
+            delete_schema = SQLAlchemyMapping(cls,
+                                              nullables=nullables,
+                                              excludes=excludes)
 
         self.delete_schema = delete_schema
 
