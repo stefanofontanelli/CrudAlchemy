@@ -58,12 +58,15 @@ class Base(object):
 
         self.delete_schema = delete_schema
 
-    def create(self, session=None, **kwargs):
+    def create(self, session=None, validate=True, **kwargs):
 
         if session is None:
             session = self.session
 
-        obj = self.cls(**self.create_schema.deserialize(kwargs))
+        if validate:
+            kwargs = self.create_schema.deserialize(kwargs)
+
+        obj = self.cls(**kwargs)
         session.add(obj)
 
         return obj
@@ -127,7 +130,7 @@ class Base(object):
         msg = "'raw_query' and 'start'/'limit' are mutually exclusive."
         raise ValueError(msg)
 
-    def update(self, session=None, **kwargs):
+    def update(self, session=None, validate=True, **kwargs):
 
         # NOTE:  update of PKs is not supported.
         # It can be done after using returned obj.
@@ -136,7 +139,11 @@ class Base(object):
         if session is None:
             session = self.session
 
-        params = self.update_schema.deserialize(kwargs)
+        if validate:
+            params = self.update_schema.deserialize(kwargs)
+        else:
+            params = kwargs
+
         try:
             id_ = tuple([params[k] for k in self.mapping_registry.pkeys])
 
