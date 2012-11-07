@@ -1,7 +1,7 @@
 from setuptools import find_packages
 from setuptools import setup
 
-version = '0.1'
+version = '0.2'
 
 setup(name='CrudAlchemy',
       version=version,
@@ -23,9 +23,7 @@ An helper class which encapsulates common CRUD operations on SQLAlchemy mapped c
       packages=find_packages(),
       include_package_data=True,
       zip_safe=True,
-      install_requires=[
-            'SQLAlchemy',
-            'ColanderAlchemy'],
+      install_requires=['SQLAlchemy >= 0.8.0dev'],
       tests_require=[],
       test_suite='tests',
       )
