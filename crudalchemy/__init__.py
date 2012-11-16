@@ -4,5 +4,6 @@
 # This module is part of CrudAlchemy and is released under
 # the MIT License: http://www.opensource.org/licenses/mit-license.php
 
-from .utils import setup_sqlalchemy
+from .utils import (setup_sqlalchemy,
+                    create_sqla_session)
 from .declarative import CRUDBase

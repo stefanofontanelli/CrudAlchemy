@@ -21,7 +21,7 @@ def setup_sqlalchemy(config, settings, base,
     """ Utility function usefull to config SQLA in Pyramid apps.
     """
     config.set_request_property(req_prop_fun,
-                                name=request_property,
+                                name=req_prop_name,
                                 reify=True)
     init_model(config, settings, base)
 
