@@ -26,10 +26,10 @@ class CRUDBase(object):
         return obj
 
     @classmethod
-    def read(cls, session, **kwargs):
+    def read(cls, session, **pks):
 
         try:
-            id_ = tuple([kwargs.pop(prop.key)
+            id_ = tuple([pks.pop(prop.key)
                          for prop in inspect(cls).column_attrs
                          if prop.columns[0].primary_key])
 
@@ -86,32 +86,44 @@ class CRUDBase(object):
         raise ValueError(msg)
 
     @classmethod
-    def update(cls, session, bulk=False, sync_session='evaluate', **kwargs):
+    def update(cls, session, pks, **kwargs):
 
-        # NOTE:  update of PKs is not supported.
-        # It can be done after using returned obj.
+        bulk = kwargs.pop('bulk', False)
+        sync_session = kwargs.pop('sync_session', 'evaluate')
         if not bulk:
-            obj = cls.read(session, **kwargs)
+            obj = cls.read(session, **pks)
             for attr, value in kwargs.items():
                 log.debug('Attr: %s - Value: %s' % (attr, value))
                 setattr(obj, attr, value)
             return obj
 
-        else:
-            criterions = [getattr(cls, prop.key) == kwargs.pop(prop.key)
-                          for prop in inspect(cls).column_attrs
-                          if prop.key in kwargs and \
-                             prop.columns[0].primary_key]
-            query = cls.search(session, raw_query=True, *criterions)
-            return query.update(kwargs, sync_session)
+        try:
+            criterions = [getattr(cls, p.key) == pks[p.key]
+                          for p in inspect(cls).column_attrs
+                          if p.columns[0].primary_key]
+
+        except KeyError as e:
+            msg = 'You must specify all primary keys: %s' % e
+            raise ValueError(msg)
+
+        query = cls.search(session, raw_query=True, *criterions)
+        return query.update(kwargs, sync_session)
 
     @classmethod
-    def delete(cls, session, bulk=False, sync_session='evaluate', **kwargs):
+    def delete(cls, session, bulk=False, sync_session='evaluate', **pks):
+
         if not bulk:
-            obj = cls.read(session, **kwargs)
-            session.delete(obj)
-        else:
-            criterions = [getattr(cls, attr) == value
-                          for attr, value in kwargs.items()]
-            query = cls.search(session, raw_query=True, *criterions)
-            return query.delete(sync_session)
+            obj = cls.read(session, **pks)
+            return session.delete(obj)
+
+        try:
+            criterions = [getattr(cls, p.key) == pks[p.key]
+                          for p in inspect(cls).column_attrs
+                          if p.columns[0].primary_key]
+
+        except KeyError as e:
+            msg = 'You must specify all primary keys: %s' % e
+            raise ValueError(msg)
+
+        query = cls.search(session, raw_query=True, *criterions)
+        return query.delete(sync_session)
