@@ -39,7 +39,7 @@ class CRUDBase(object):
 
         obj = session.query(cls).get(id_)
         if obj is None:
-            msg = '%s %s not found.' % (cls.__name__, kwargs)
+            msg = '%s %s not found.' % (cls.__name__, id_)
             raise NoResultFound(msg)
 
         return obj
