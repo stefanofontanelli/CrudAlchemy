@@ -63,7 +63,7 @@ class CRUDBase(object):
             # Use sqlalchmey OR
             query = query.filter(or_(*criterions))
 
-        if order_by:
+        if not order_by is None:
             query = query.order_by(*order_by)
 
         if not raw_query and not start is None and not limit is None:
